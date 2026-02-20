@@ -139,16 +139,39 @@ int main(int argc, char *argv[]) {
 
       if (getDatabaseEntry(user)->passwordAge >= 10) {
         printf("[INFO] You should change password now...\n");
-        char *new_pass;
-        char new_prompt[] = "new password: ";
-        new_pass = getpass(new_prompt);
+        char *newPassword;
+        char newPasswordPrompt[] = "New password: ";
+        newPassword = getpass(newPasswordPrompt);
 
         userEntry->passwordAge = 0;
-        userEntry->password = new_pass;
+
+        // Create pseudo-random password salt
+        int saltSize = 3 + DATABASE_PASSWORD_SALT_LENGTH;
+        char *passwordSalt = (char *)malloc(saltSize);
+
+        passwordSalt[0] = '$';
+        passwordSalt[1] = '6';
+        passwordSalt[2] = '$';
+
+        for (int i = 3; i < saltSize; i++) {
+          // Create a salt where each character is between 'A-Z' or 'a-z'
+          // randomly
+          if (random() % 2)
+            passwordSalt[i] = 'A' + random() % 26;
+          else
+            passwordSalt[i] = 'a' + random() % 26;
+        }
+
+        // Encrypt the plain password
+        char *encryptedPassword = crypt(newPassword, passwordSalt);
+        userEntry->password = encryptedPassword;
+        userEntry->passwordSalt = passwordSalt;
 
         if (updateDatabaseEntry(user, userEntry) == -1) {
           printf("[ERROR] Could not update the entry.\n");
         }
+
+        free(passwordSalt);
       }
 
       int res = setuid(userEntry->uid);
